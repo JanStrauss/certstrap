@@ -21,12 +21,13 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"math/big"
+	"net"
 	"time"
 )
 
 // CreateCertificateAuthority creates Certificate Authority using existing key.
 // CertificateAuthorityInfo returned is the extra infomation required by Certificate Authority.
-func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time.Time, organization string, country string, province string, locality string, commonName string, permitDomains []string) (*Certificate, error) {
+func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time.Time, organization string, country string, province string, locality string, commonName string, permitDomains []string, permitIpRanges []*net.IPNet) (*Certificate, error) {
 	authTemplate := newAuthTemplate()
 
 	subjectKeyID, err := GenerateSubjectKeyID(key.Public)
@@ -57,6 +58,9 @@ func CreateCertificateAuthority(key *Key, organizationalUnit string, expiry time
 	if len(permitDomains) > 0 {
 		authTemplate.PermittedDNSDomainsCritical = true
 		authTemplate.PermittedDNSDomains = permitDomains
+	}
+	if len(permitIpRanges) > 0 {
+		authTemplate.PermittedIPRanges = permitIpRanges
 	}
 
 	crtBytes, err := x509.CreateCertificate(rand.Reader, &authTemplate, &authTemplate, key.Public, key.Private)
@@ -122,7 +126,7 @@ func newAuthTemplate() x509.Certificate {
 	return x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		// NotBefore is set to be 10min earlier to fix gap on time difference in cluster
-		NotBefore: time.Now().Add(-10*time.Minute).UTC(),
+		NotBefore: time.Now().Add(-10 * time.Minute).UTC(),
 		NotAfter:  time.Time{},
 		// Used for certificate signing only
 		KeyUsage: x509.KeyUsageCertSign | x509.KeyUsageCRLSign,

@@ -18,6 +18,7 @@
 package pkix
 
 import (
+	"net"
 	"testing"
 	"time"
 )
@@ -28,7 +29,8 @@ func TestCreateCertificateAuthority(t *testing.T) {
 		t.Fatal("Failed creating rsa key:", err)
 	}
 
-	crt, err := CreateCertificateAuthority(key, "OU", time.Now().AddDate(5, 0, 0), "test", "US", "California", "San Francisco", "CA Name", []string{".example.com"})
+	_, ipRange, _ := net.ParseCIDR("192.168.0.0/24")
+	crt, err := CreateCertificateAuthority(key, "OU", time.Now().AddDate(5, 0, 0), "test", "US", "California", "San Francisco", "CA Name", []string{".example.com"}, []*net.IPNet{ipRange})
 	if err != nil {
 		t.Fatal("Failed creating certificate authority:", err)
 	}

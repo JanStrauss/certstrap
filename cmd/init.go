@@ -20,6 +20,7 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"strings"
 
@@ -93,6 +94,10 @@ func NewInitCommand() cli.Command {
 				Name:  "permit-domain",
 				Usage: "Create a CA restricted to subdomains of this domain (can be specified multiple times)",
 			},
+			cli.StringSliceFlag{
+				Name:  "permit-ip-range",
+				Usage: "Create a CA restricted to IPs in this range (example: 192.168.0.0/24) (can be specified multiple times)",
+			},
 		},
 		Action: initAction,
 	}
@@ -136,6 +141,17 @@ func initAction(c *cli.Context) {
 		}
 	}
 
+	permitIpRangeStrings := c.StringSlice("permit-ip-range")
+	permitIpRanges := make([]*net.IPNet, 0, len(permitIpRangeStrings))
+	for _, ipRangeString := range permitIpRangeStrings {
+		_, ipRange, err := net.ParseCIDR(ipRangeString)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Invalid IP range", err)
+			os.Exit(1)
+		}
+		permitIpRanges = append(permitIpRanges, ipRange)
+	}
+
 	var key *pkix.Key
 	switch {
 	case c.IsSet("key"):
@@ -176,7 +192,7 @@ func initAction(c *cli.Context) {
 		}
 	}
 
-	crt, err := pkix.CreateCertificateAuthority(key, c.String("organizational-unit"), expiresTime, c.String("organization"), c.String("country"), c.String("province"), c.String("locality"), c.String("common-name"), c.StringSlice("permit-domain"))
+	crt, err := pkix.CreateCertificateAuthority(key, c.String("organizational-unit"), expiresTime, c.String("organization"), c.String("country"), c.String("province"), c.String("locality"), c.String("common-name"), c.StringSlice("permit-domain"), permitIpRanges)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Create certificate error:", err)
 		os.Exit(1)
